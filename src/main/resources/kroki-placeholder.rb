@@ -81,10 +81,18 @@ module AsciidoctorExtensions
     end
 
     # The result of the Kroki extension: a placeholder if it reported an error, the result itself otherwise.
-    def finish(processor, parent, result, diagram_type, source, text = nil)
+    # For a block macro the error block is a paragraph carrying the message; for a delimited block it is the
+    # original listing/literal block, i.e. its source is the diagram text (shown as the excerpt).
+    def finish(processor, parent, result, diagram_type, source)
       return result unless error_block?(result)
 
-      message = result.respond_to?(:source) ? result.source.to_s.lines.first.to_s.strip : ''
+      if result.context.to_s == 'paragraph' # the Kroki extension creates it with a String context
+        message = result.source.to_s.lines.first.to_s.strip
+        text = nil
+      else
+        message = 'Diagram could not be rendered'
+        text = result.source.to_s
+      end
       message = 'Diagram could not be rendered' if message.empty?
       block(processor, parent, diagram_type, source, message, text)
     end
@@ -114,11 +122,11 @@ module AsciidoctorExtensions
   module KrokiPlaceholderBlock
     def process(parent, reader, attrs)
       diagram_type = @name
-      text = reader.string
       if KrokiPlaceholder.placeholder_only?(parent.document)
-        return KrokiPlaceholder.block(self, parent, diagram_type, nil, 'Preview placeholders enabled (kroki-preview-placeholder)', text)
+        # the only path that reads the text itself; otherwise the reader is left to the Kroki extension
+        return KrokiPlaceholder.block(self, parent, diagram_type, nil, 'Preview placeholders enabled (kroki-preview-placeholder)', reader.string)
       end
-      KrokiPlaceholder.finish(self, parent, super(parent, Asciidoctor::Reader.new(text), attrs), diagram_type, nil, text)
+      KrokiPlaceholder.finish(self, parent, super, diagram_type, nil)
     end
   end
 
