@@ -110,6 +110,10 @@ public class AsciiDocWrapperTest extends BasePlatformTestCase {
       "@startuml\nhide circle\nskinparam backgroundColor #EEEBDC\n@enduml\n", UTF_8);
     Files.writeString(new File(examples, "model.puml").toPath(),
       "@startuml\n!include layout.puml\nclass FromExampleInclude\n@enduml\n", UTF_8);
+    File deep = new File(examples, "nested/deep");
+    assertThat(deep.mkdirs()).isTrue();
+    Files.writeString(new File(deep, "nested.puml").toPath(),
+      "@startuml\n!include ../../layout.puml\nclass FromNestedInclude\n@enduml\n", UTF_8);
     Files.writeString(new File(examples, "broken.puml").toPath(),
       "@startuml\n!include missing-layout.puml\nclass FromMissingInclude\n@enduml\n", UTF_8);
     VirtualFile baseVf = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(base);
@@ -149,6 +153,16 @@ public class AsciiDocWrapperTest extends BasePlatformTestCase {
         .doesNotContain("kroki-placeholder-open") // nothing to open: the file does not exist
         .doesNotContain("Unresolved block macro")
         .doesNotContain("https://kroki.io/plantuml/");
+
+      // a diagram two directories deep reaching the shared layout with ../../ (the real-world tree layout)
+      String nested = wrapper.render("plantuml::example$nested/deep/nested.puml[]\n", Collections.emptyList());
+      Matcher mn = Pattern.compile("https://kroki.io/plantuml/(?:svg|png)/([A-Za-z0-9_-]+)").matcher(nested);
+      assertThat(mn.find()).withFailMessage("expected a Kroki URL for the nested diagram: %s", nested).isTrue();
+      Inflater inflaterNested = new Inflater();
+      inflaterNested.setInput(Base64.getUrlDecoder().decode(mn.group(1)));
+      byte[] bufferNested = new byte[8192];
+      String nestedDiagram = new String(bufferNested, 0, inflaterNested.inflate(bufferNested), UTF_8);
+      assertThat(nestedDiagram).contains("FromNestedInclude").contains("hide circle").doesNotContain("!include");
 
       // an include the preprocessor could not resolve (missing file) must not be sent to the server (PlantUML
       // there silently drops the line and renders a degraded diagram): placeholder naming it, with an open link
