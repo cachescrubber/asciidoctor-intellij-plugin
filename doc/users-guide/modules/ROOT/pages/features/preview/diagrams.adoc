@@ -136,10 +136,10 @@ PlantUML CLI or the PlantUML integration plugin.
 
 === Placeholders for Kroki diagrams that cannot be rendered
 
-A Kroki diagram can fail in the preview for three reasons: the block macro's target cannot be resolved or
-read, one of its `+!include+` files does not exist, or the Kroki server rejects the diagram.
-In all three cases the preview shows a placeholder box instead of an error paragraph or a silently
-incomplete diagram (the Kroki server drops an include it cannot read and renders the rest).
+A Kroki diagram can fail in the preview when the block macro's target cannot be resolved or read, or when
+one of its `+!include+` files does not exist.
+In both cases the preview shows a placeholder box instead of an error paragraph or a silently incomplete
+diagram (the Kroki server drops an include it cannot read and renders the rest).
 The box names the diagram type and the reason, and offers an *Open* link that opens the diagram source in
 the IDE editor -- where the PlantUML integration plugin, if installed, previews the file on its own.
 

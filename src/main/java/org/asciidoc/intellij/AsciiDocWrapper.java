@@ -449,8 +449,8 @@ public class AsciiDocWrapper {
             asciidoctor.rubyExtensionRegistry().loadClass(is);
           }
           // Placeholders for Kroki diagrams the preview cannot render (unresolvable target, missing include
-          // file, server error), linking to the diagram source instead of failing the page or rendering a
-          // silently degraded diagram. Must load after kroki-antora.rb.
+          // file), linking to the diagram source instead of failing the page or rendering a silently degraded
+          // diagram. Must load after kroki-antora.rb.
           try (InputStream is = this.getClass().getResourceAsStream("/kroki-placeholder.rb")) {
             if (is == null) {
               throw new RuntimeException("unable to load script kroki-placeholder.rb");

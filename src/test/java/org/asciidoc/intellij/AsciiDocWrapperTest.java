@@ -129,11 +129,7 @@ public class AsciiDocWrapperTest extends BasePlatformTestCase {
       String html = wrapper.render("plantuml::example$model.puml[]\n", Collections.emptyList());
       assertThat(html)
         .withFailMessage("expected a Kroki PlantUML image (example$ target resolved, relative include inlined): %s", html)
-        .contains("https://kroki.io/plantuml/")
-        // kroki-placeholder.rb wraps the image so processImages.js can swap in a placeholder if the server rejects it
-        .contains("class=\"kroki-diagram\"")
-        .contains("data-kroki-source=\"file://")
-        .contains("data-kroki-name=\"model.puml\"");
+        .contains("https://kroki.io/plantuml/");
       Matcher m = Pattern.compile("https://kroki.io/plantuml/(?:svg|png)/([A-Za-z0-9_-]+)").matcher(html);
       assertThat(m.find()).isTrue();
       Inflater inflater = new Inflater();

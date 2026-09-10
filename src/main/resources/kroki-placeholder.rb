@@ -7,10 +7,10 @@ require 'cgi'
 # A diagram fails in the preview when its block-macro target cannot be resolved or read, when it still contains
 # a local `!include` after the Kroki extension's preprocessing (the referenced file does not exist; the Kroki
 # server has no file system and PlantUML there silently drops such a line and renders a degraded diagram, e.g.
-# without the shared layout), or when the server rejects it. The Kroki extension itself degrades the latter to
-# a `kroki-error` block. Instead of an error paragraph, a silently incomplete diagram or a broken image, the
-# preview shows a placeholder box naming the diagram and the reason, with a link that opens the source in the
-# IDE editor - where the PlantUML integration plugin, if installed, previews it on its own.
+# without the shared layout), or when the Kroki extension itself reports an error (a `kroki-error` block).
+# Instead of an error paragraph or a silently incomplete diagram, the preview shows a placeholder box naming
+# the diagram and the reason, with a link that opens the source in the IDE editor - where the PlantUML
+# integration plugin, if installed, previews it on its own.
 #
 #   1. KrokiBlockMacroProcessor#process and KrokiBlockProcessor#process are wrapped: an unreadable target
 #      yields the placeholder directly; a `kroki-error` block returned by the Kroki extension is turned into
@@ -18,11 +18,11 @@ require 'cgi'
 #   2. PlantUmlPreprocessor.preprocess is wrapped: a local `!include` (not `<stdlib>`, not http(s)) still
 #      present after preprocessing raises UnresolvedIncludeError, which the Kroki extension reports as a
 #      `kroki-error` block -> placeholder, so the server never renders a silently degraded diagram.
-#   3. A successfully created image block is wrapped in <div class="kroki-diagram" data-kroki-source=...> so
-#      the preview's JavaScript (processImages.js) can swap in the same placeholder when the browser fails to
-#      load the image from the Kroki server.
-#   4. Setting the document attribute `kroki-preview-placeholder` (e.g. via the plugin's attribute settings)
+#   3. Setting the document attribute `kroki-preview-placeholder` (e.g. via the plugin's attribute settings)
 #      shows placeholders for all Kroki diagrams without contacting the server at all.
+#
+# The image itself is fetched by the preview's browser, so a transport failure (server unreachable, URI too
+# long) still shows as a broken image; that case is intentionally not handled here.
 #
 # See https://github.com/asciidoctor/asciidoctor-intellij-plugin/issues/516
 module AsciidoctorExtensions
@@ -80,27 +80,13 @@ module AsciidoctorExtensions
       processor.create_block(parent, :pass, html, {}, content_model: :raw)
     end
 
-    # Wraps a rendered image block so the preview's JavaScript can replace a broken image by a placeholder.
-    def wrap_image(processor, parent, image_block, diagram_type, source)
-      return image_block unless image_block.context == :image
-
-      e = ->(s) { CGI.escapeHTML(s.to_s) }
-      link = file_link(source)
-      attrs = "class=\"kroki-diagram\" data-kroki-type=\"#{e[diagram_type]}\""
-      attrs += " data-kroki-source=\"#{e[link]}\" data-kroki-name=\"#{e[::File.basename(source)]}\"" if link
-      processor.create_block(parent, :pass, "<div #{attrs}>#{image_block.convert}</div>", {}, content_model: :raw)
-    rescue StandardError
-      image_block
-    end
-
-    # The result of the Kroki extension: a placeholder if it reported an error, the wrapped image otherwise.
+    # The result of the Kroki extension: a placeholder if it reported an error, the result itself otherwise.
     def finish(processor, parent, result, diagram_type, source, text = nil)
-      if error_block?(result)
-        message = result.respond_to?(:source) ? result.source.to_s.lines.first.to_s.strip : ''
-        message = 'Diagram could not be rendered' if message.empty?
-        return block(processor, parent, diagram_type, source, message, text)
-      end
-      wrap_image(processor, parent, result, diagram_type, source)
+      return result unless error_block?(result)
+
+      message = result.respond_to?(:source) ? result.source.to_s.lines.first.to_s.strip : ''
+      message = 'Diagram could not be rendered' if message.empty?
+      block(processor, parent, diagram_type, source, message, text)
     end
   end
 
